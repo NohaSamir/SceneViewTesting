@@ -38,7 +38,6 @@ import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.ModelNode
 import io.github.sceneview.node.Node
 import io.github.sceneview.rememberEngine
-import io.github.sceneview.rememberIndirectLight
 import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberMaterialLoader
 import io.github.sceneview.rememberModelLoader
@@ -74,7 +73,6 @@ private fun SceneViewBase() {
     val nodes = remember { mutableStateListOf<Node>() }
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
-    val indirectLight = rememberIndirectLight(engine = engine)
     val mainLight = rememberMainLightNode(engine = engine)
     val view = rememberView(engine = engine)
     val renderer = rememberRenderer(engine)
@@ -129,7 +127,6 @@ private fun SceneViewBase() {
             scene = scene,
             view = view,
             renderer = renderer,
-            indirectLight = indirectLight,
             skybox = if (isTransparent) null else skybox,
             mainLightNode = mainLight,
             onViewCreated = {
