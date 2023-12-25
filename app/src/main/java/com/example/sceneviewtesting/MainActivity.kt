@@ -1,5 +1,7 @@
 package com.example.sceneviewtesting
 
+import android.graphics.PixelFormat
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,23 +30,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.sceneviewtesting.ui.theme.SceneViewTestingTheme
 import com.google.android.filament.LightManager
-import com.google.android.filament.Skybox
+import com.google.android.filament.Renderer
+import com.google.android.filament.View
 import io.github.sceneview.Scene
 import io.github.sceneview.SceneView
 import io.github.sceneview.loaders.ModelLoader
 import io.github.sceneview.managers.color
 import io.github.sceneview.math.Position
+import io.github.sceneview.math.colorOf
 import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.ModelNode
 import io.github.sceneview.node.Node
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberMainLightNode
-import io.github.sceneview.rememberMaterialLoader
 import io.github.sceneview.rememberModelLoader
-import io.github.sceneview.rememberRenderer
-import io.github.sceneview.rememberScene
-import io.github.sceneview.rememberSkybox
-import io.github.sceneview.rememberView
 
 class MainActivity : ComponentActivity() {
 
@@ -65,8 +64,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-val LightBackgroundColor = Color(0xFFFAFAFA)
-
 @Preview
 @Composable
 private fun SceneViewBase() {
@@ -74,22 +71,6 @@ private fun SceneViewBase() {
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val mainLight = rememberMainLightNode(engine = engine)
-    val view = rememberView(engine = engine)
-    val renderer = rememberRenderer(engine)
-    val scene = rememberScene(engine = engine)
-    val materialLoader = rememberMaterialLoader(engine)
-    val skybox = rememberSkybox(engine = engine, creator = {
-        Skybox
-            .Builder()
-            .color(
-                LightBackgroundColor.red,
-                LightBackgroundColor.green,
-                LightBackgroundColor.blue,
-                1f
-            )
-            .build(engine)
-    })
-    var isTransparent by remember { mutableStateOf(false) }
     var isLightAdded by remember { mutableStateOf(false) }
     var currentModelNodeId by remember { mutableIntStateOf(0) }
     var playerModelNode by remember { mutableStateOf<ModelNode?>(null) }
@@ -123,25 +104,15 @@ private fun SceneViewBase() {
             childNodes = nodes,
             engine = engine,
             modelLoader = modelLoader,
-            materialLoader = materialLoader,
-            scene = scene,
-            view = view,
-            renderer = renderer,
-            skybox = if (isTransparent) null else skybox,
+            skybox = null,
             mainLightNode = mainLight,
             onViewCreated = {
-                setTranslucent(isTransparent)
-            },
-            onViewUpdated = {
-                setTranslucent(isTransparent)
+                translucent(true)
             }
         )
 
         SceneSettings(
             modifier = Modifier.align(Alignment.BottomEnd),
-            onTransparentBackgroundColor = {
-                isTransparent = !isTransparent
-            },
             onAddLight = {
                 if (isLightAdded) {
                     nodes.remove(frontLightNode)
@@ -176,7 +147,6 @@ private fun SceneViewBase() {
 @Composable
 private fun SceneSettings(
     modifier: Modifier = Modifier,
-    onTransparentBackgroundColor: () -> Unit,
     onAddLight: () -> Unit,
     onChangeModel: () -> Unit
 ) {
@@ -185,13 +155,6 @@ private fun SceneSettings(
             .fillMaxWidth()
             .padding(horizontal = 64.dp, vertical = 24.dp)
     ) {
-        Button(
-            modifier = modifier
-                .fillMaxWidth(),
-            onClick = onTransparentBackgroundColor
-        ) {
-            Text(text = "Transparent BG color")
-        }
         Button(
             modifier = modifier.fillMaxWidth(),
             onClick = onAddLight
@@ -252,6 +215,21 @@ fun LoadModels(
                 position = Position(z = -1f, x = 0f, y = 0f),
             )
             onHelmetModelLoaded(this)
+        }
+    }
+}
+
+private fun SceneView.translucent(translucent: Boolean) {
+    holder.setFormat(if (translucent) PixelFormat.TRANSLUCENT else PixelFormat.OPAQUE)
+    // The following line causes the view to be repeatedly shown
+    view.blendMode = if (translucent) View.BlendMode.TRANSLUCENT else View.BlendMode.OPAQUE
+    setZOrderOnTop(translucent)
+    renderer.clearOptions = Renderer.ClearOptions().apply {
+        clear = translucent
+        if (!translucent) {
+            (background as? ColorDrawable)?.color?.let { backgroundColor ->
+                clearColor = colorOf(backgroundColor).toFloatArray()
+            }
         }
     }
 }
