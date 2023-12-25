@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import com.example.sceneviewtesting.ui.theme.SceneViewTestingTheme
 import com.google.android.filament.LightManager
 import com.google.android.filament.Renderer
-import com.google.android.filament.View
 import io.github.sceneview.Scene
 import io.github.sceneview.SceneView
 import io.github.sceneview.loaders.ModelLoader
@@ -222,7 +221,7 @@ fun LoadModels(
 private fun SceneView.translucent(translucent: Boolean) {
     holder.setFormat(if (translucent) PixelFormat.TRANSLUCENT else PixelFormat.OPAQUE)
     // The following line causes the view to be repeatedly shown
-    view.blendMode = if (translucent) View.BlendMode.TRANSLUCENT else View.BlendMode.OPAQUE
+    // view.blendMode = if (translucent) View.BlendMode.TRANSLUCENT else View.BlendMode.OPAQUE
     setZOrderOnTop(translucent)
     renderer.clearOptions = Renderer.ClearOptions().apply {
         clear = translucent
