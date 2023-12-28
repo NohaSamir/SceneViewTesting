@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import com.example.sceneviewtesting.ui.theme.SceneViewTestingTheme
 import com.google.android.filament.LightManager
 import com.google.android.filament.Renderer
+import com.google.android.filament.Skybox
+import com.google.android.filament.View
 import io.github.sceneview.Scene
 import io.github.sceneview.SceneView
 import io.github.sceneview.loaders.ModelLoader
@@ -43,6 +45,7 @@ import io.github.sceneview.node.Node
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberModelLoader
+import io.github.sceneview.rememberSkybox
 
 class MainActivity : ComponentActivity() {
 
@@ -69,20 +72,45 @@ private fun SceneViewBase() {
     val nodes = remember { mutableStateListOf<Node>() }
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
-    val mainLight = rememberMainLightNode(engine = engine)
-    var isLightAdded by remember { mutableStateOf(false) }
     var currentModelNodeId by remember { mutableIntStateOf(0) }
     var playerModelNode by remember { mutableStateOf<ModelNode?>(null) }
     var helmetModelNode by remember { mutableStateOf<ModelNode?>(null) }
+    val mainFrontLight = rememberMainLightNode(engine = engine, creator = {
+        LightNode(
+            engine = engine,
+            type = LightManager.Type.SPOT,
+            apply = {
+                color(SceneView.DEFAULT_MAIN_LIGHT_COLOR)
+                falloff(1000f)
+                intensity(48_000_0.0f)
+                direction(0f, 0f, -3f)
+                position(-1f, 0f, -3f)
+            })
+    })
 
-    val frontLightNode = LightNode(
-        engine = engine,
-        type = LightManager.Type.DIRECTIONAL,
-        apply = {
-            color(SceneView.DEFAULT_MAIN_LIGHT_COLOR)
-            intensity(SceneView.DEFAULT_MAIN_LIGHT_COLOR_INTENSITY)
-            direction(0f, 0f, -4.0f)
-        })
+    val backLight = rememberMainLightNode(engine = engine, creator = {
+        LightNode(
+            engine = engine,
+            type = LightManager.Type.DIRECTIONAL,
+            apply = {
+                color(SceneView.DEFAULT_MAIN_LIGHT_COLOR)
+                intensity(SceneView.DEFAULT_MAIN_LIGHT_COLOR_INTENSITY)
+                direction(0f, 0f, 4.0f)
+            })
+    })
+    nodes.add(backLight)
+
+    val skybox = rememberSkybox(engine = engine, creator = {
+        Skybox
+            .Builder()
+            .color(
+                /* r = */ 3000f,
+                /* g = */ 300f,
+                /* b = */ 300f,
+                /* a = */ 1f
+            )
+            .build(engine)
+    })
 
     LoadModels(
         modelLoader = modelLoader,
@@ -103,23 +131,12 @@ private fun SceneViewBase() {
             childNodes = nodes,
             engine = engine,
             modelLoader = modelLoader,
-            skybox = null,
-            mainLightNode = mainLight,
-            onViewCreated = {
-                translucent(true)
-            }
+            skybox = skybox,
+            mainLightNode = mainFrontLight
         )
 
         SceneSettings(
             modifier = Modifier.align(Alignment.BottomEnd),
-            onAddLight = {
-                if (isLightAdded) {
-                    nodes.remove(frontLightNode)
-                } else {
-                    nodes.add(frontLightNode)
-                }
-                isLightAdded = !isLightAdded
-            },
             onChangeModel = {
                 when (currentModelNodeId) {
                     0 -> {
@@ -146,7 +163,6 @@ private fun SceneViewBase() {
 @Composable
 private fun SceneSettings(
     modifier: Modifier = Modifier,
-    onAddLight: () -> Unit,
     onChangeModel: () -> Unit
 ) {
     Column(
@@ -154,12 +170,6 @@ private fun SceneSettings(
             .fillMaxWidth()
             .padding(horizontal = 64.dp, vertical = 24.dp)
     ) {
-        Button(
-            modifier = modifier.fillMaxWidth(),
-            onClick = onAddLight
-        ) {
-            Text(text = "Add light")
-        }
         Button(
             modifier = modifier.fillMaxWidth(), onClick = onChangeModel
         ) {
@@ -188,7 +198,7 @@ fun LoadModels(
                             rotation = Rotation(x = 0f)
                         )
                     }
-                    playerModelNode = node
+                    onPlayerModelLoaded(node)
                 }
             })*/
 
@@ -199,7 +209,7 @@ fun LoadModels(
             scaleToUnits = 2.5f
         ).apply {
             transform(
-                position = Position(z = -4f, x = -0.1f, y = -0.3f),
+                position = Position(x = -0.1f, y = -0.3f, z = -4f),
             )
             onPlayerModelLoaded(this)
         }
@@ -221,7 +231,7 @@ fun LoadModels(
 private fun SceneView.translucent(translucent: Boolean) {
     holder.setFormat(if (translucent) PixelFormat.TRANSLUCENT else PixelFormat.OPAQUE)
     // The following line causes the view to be repeatedly shown
-    // view.blendMode = if (translucent) View.BlendMode.TRANSLUCENT else View.BlendMode.OPAQUE
+    view.blendMode = if (translucent) View.BlendMode.TRANSLUCENT else View.BlendMode.OPAQUE
     setZOrderOnTop(translucent)
     renderer.clearOptions = Renderer.ClearOptions().apply {
         clear = translucent
